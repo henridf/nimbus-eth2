@@ -106,7 +106,7 @@ proc findValidator*(validators: auto, pubkey: ValidatorPubKey): Opt[ValidatorInd
 proc addValidators*(node: BeaconNode) =
   debug "Loading validators", validatorsDir = node.config.validatorsDir()
   let slot = node.currentSlot()
-  for keystore in listLoadableKeystores(node.config):
+  for keystore in listLoadableKeystores(node.config, node.keystoreCache):
     let
       index = withState(node.dag.headState):
         findValidator(forkyState.data.validators.asSeq(), keystore.pubkey)

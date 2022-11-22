@@ -390,13 +390,13 @@ proc loadSecretFile*(path: string): KsResult[KeystorePass] {.
   ok(KeystorePass.init(res.get()))
 
 proc loadRemoteKeystoreImpl(validatorsDir,
-                            keyName: string): Option[KeystoreData] =
+                            keyName: string): Opt[KeystoreData] =
   let keystorePath = validatorsDir / keyName / RemoteKeystoreFileName
 
   if not(checkSensitiveFilePermissions(keystorePath)):
     error "Remote keystorage file has insecure permissions",
           key_path = keystorePath
-    return
+    return Opt.none(KeystoreData)
 
   let handle =
     block:
@@ -404,7 +404,7 @@ proc loadRemoteKeystoreImpl(validatorsDir,
       if res.isErr():
         error "Unable to lock keystore file", key_path = keystorePath,
               error_msg = ioErrorMsg(res.error())
-        return
+        return Opt.none(KeystoreData)
       res.get()
 
   var success = false
@@ -418,7 +418,7 @@ proc loadRemoteKeystoreImpl(validatorsDir,
       if gres.isErr():
         error "Could not read remote keystore file", key_path = keystorePath,
               error_msg = ioErrorMsg(gres.error())
-        return
+        return Opt.none(KeystoreData)
       let buffer = gres.get()
       let data =
         try:
@@ -426,19 +426,20 @@ proc loadRemoteKeystoreImpl(validatorsDir,
         except SerializationError as e:
           error "Invalid remote keystore file", key_path = keystorePath,
                 error_msg = e.formatMsg(keystorePath)
-          return
+          return Opt.none(KeystoreData)
       let kres = KeystoreData.init(data, handle)
       if kres.isErr():
         error "Invalid remote keystore file", key_path = keystorePath,
               error_msg = kres.error()
-        return
+        return Opt.none(KeystoreData)
       kres.get()
 
   success = true
-  some(keystore)
+  Opt.some(keystore)
 
 proc loadLocalKeystoreImpl(validatorsDir, secretsDir, keyName: string,
-                           nonInteractive: bool): Option[KeystoreData] =
+                           nonInteractive: bool,
+                           cache: KeystoreCacheRef): Opt[KeystoreData] =
   let
     keystorePath = validatorsDir / keyName / KeystoreFileName
     passphrasePath = secretsDir / keyName
@@ -448,7 +449,7 @@ proc loadLocalKeystoreImpl(validatorsDir, secretsDir, keyName: string,
         if res.isErr():
           error "Unable to lock keystore file", key_path = keystorePath,
                 error_msg = ioErrorMsg(res.error())
-          return
+          return Opt.none(KeystoreData)
         res.get()
 
   var success = false
@@ -463,7 +464,7 @@ proc loadLocalKeystoreImpl(validatorsDir, secretsDir, keyName: string,
         if gres.isErr():
           error "Could not read local keystore file", key_path = keystorePath,
                 error_msg = ioErrorMsg(gres.error())
-          return
+          return Opt.none(KeystoreData)
         let buffer = gres.get()
         let data =
           try:
@@ -471,13 +472,13 @@ proc loadLocalKeystoreImpl(validatorsDir, secretsDir, keyName: string,
           except SerializationError as e:
             error "Invalid local keystore file", key_path = keystorePath,
                   error_msg = e.formatMsg(keystorePath)
-            return
+            return Opt.none(KeystoreData)
         data
 
   if fileExists(passphrasePath):
     if not(checkSensitiveFilePermissions(passphrasePath)):
       error "Password file has insecure permissions", key_path = keystorePath
-      return
+      return Opt.none(KeystoreData)
 
     let passphrase =
       block:
@@ -485,23 +486,23 @@ proc loadLocalKeystoreImpl(validatorsDir, secretsDir, keyName: string,
         if res.isErr():
           error "Failed to read passphrase file", error_msg = res.error(),
                 path = passphrasePath
-          return
+          return Opt.none(KeystoreData)
         res.get()
 
     let res = decryptKeystore(keystore, passphrase)
     if res.isOk():
       success = true
-      return some(KeystoreData.init(res.get(), keystore, handle))
+      return Opt.some(KeystoreData.init(res.get(), keystore, handle))
     else:
       error "Failed to decrypt keystore", key_path = keystorePath,
             secure_path = passphrasePath
-      return
+      return Opt.none(KeystoreData)
 
   if nonInteractive:
     error "Unable to load validator key store. Please ensure matching " &
           "passphrase exists in the secrets dir", key_path = keystorePath,
           key_name = keyName, validatorsDir, secretsDir = secretsDir
-    return
+    return Opt.none(KeystoreData)
 
   let prompt = "Please enter passphrase for key \"" &
                (validatorsDir / keyName) & "\": "
@@ -515,25 +516,27 @@ proc loadLocalKeystoreImpl(validatorsDir, secretsDir, keyName: string,
   )
 
   if res.isErr():
-    return
+    return Opt.none(KeystoreData)
 
   success = true
-  some(KeystoreData.init(res.get(), keystore, handle))
+  Opt.some(KeystoreData.init(res.get(), keystore, handle))
 
 proc loadKeystore*(validatorsDir, secretsDir, keyName: string,
-                   nonInteractive: bool): Option[KeystoreData] =
+                   nonInteractive: bool,
+                   cache: KeystoreCacheRef): Opt[KeystoreData] =
   let
     keystorePath = validatorsDir / keyName
     localKeystorePath = keystorePath / KeystoreFileName
     remoteKeystorePath = keystorePath / RemoteKeystoreFileName
 
   if fileExists(localKeystorePath):
-    loadLocalKeystoreImpl(validatorsDir, secretsDir, keyName, nonInteractive)
+    loadLocalKeystoreImpl(validatorsDir, secretsDir, keyName, nonInteractive,
+                          cache)
   elif fileExists(remoteKeystorePath):
     loadRemoteKeystoreImpl(validatorsDir, keyName)
   else:
     error "Unable to find any keystore files", keystorePath
-    none[KeystoreData]()
+    Opt.none(KeystoreData)
 
 proc removeValidatorFiles*(validatorsDir, secretsDir, keyName: string,
                            kind: KeystoreKind
@@ -672,7 +675,8 @@ iterator listLoadableKeys*(validatorsDir, secretsDir: string,
 
 iterator listLoadableKeystores*(validatorsDir, secretsDir: string,
                                 nonInteractive: bool,
-                                keysMask: set[KeystoreKind]): KeystoreData =
+                                keysMask: set[KeystoreKind],
+                                cache: KeystoreCacheRef): KeystoreData =
   try:
     for kind, file in walkDir(validatorsDir):
       if kind == pcDir:
@@ -693,23 +697,24 @@ iterator listLoadableKeystores*(validatorsDir, secretsDir: string,
         let
           secretFile = secretsDir / keyName
           keystore = loadKeystore(validatorsDir, secretsDir, keyName,
-                                  nonInteractive)
-        if keystore.isSome():
-          yield keystore.get()
-        else:
-          fatal "Unable to load keystore", keystore = file
-          quit 1
+                                  nonInteractive, cache).valueOr:
+            fatal "Unable to load keystore", keystore = file
+            quit 1
+
+        yield keystore
 
   except OSError as err:
     error "Validator keystores directory not accessible",
           path = validatorsDir, err = err.msg
     quit 1
 
-iterator listLoadableKeystores*(config: AnyConf): KeystoreData =
+iterator listLoadableKeystores*(config: AnyConf,
+                                cache: KeystoreCacheRef): KeystoreData =
   for el in listLoadableKeystores(config.validatorsDir(),
                                   config.secretsDir(),
                                   config.nonInteractive,
-                                  {KeystoreKind.Local, KeystoreKind.Remote}):
+                                  {KeystoreKind.Local, KeystoreKind.Remote},
+                                  cache):
     yield el
 
 type
@@ -1010,6 +1015,7 @@ proc saveKeystore*(
        signingPubKey: CookedPubKey,
        signingKeyPath: KeyPath,
        password: string,
+       salt: openArray[byte] = @[],
        mode = Secure
      ): Result[void, KeystoreGenerationError] {.raises: [Defect].} =
   let
@@ -1027,7 +1033,7 @@ proc saveKeystore*(
 
   let keyStore = createKeystore(kdfPbkdf2, rng, signingKey,
                                 keypass, signingKeyPath,
-                                mode = mode)
+                                mode = mode, salt = salt)
 
   let encodedStorage =
     try:
@@ -1259,15 +1265,17 @@ proc importKeystore*(pool: var ValidatorPool,
 
   ok(KeystoreData.init(privateKey, keystore, res.get()))
 
-proc generateDistirbutedStore*(rng: var HmacDrbgContext,
-                               shares: seq[SecretShare],
-                               pubKey: ValidatorPubKey,
-                               validatorIdx: Natural,
-                               shareSecretsDir: string,
-                               shareValidatorDir: string,
-                               remoteValidatorDir: string,
-                               remoteSignersUrls: seq[string],
-                               threshold: uint32): Result[void, KeystoreGenerationError] =
+proc generateDistributedStore*(
+       rng: var HmacDrbgContext,
+       shares: seq[SecretShare],
+       pubKey: ValidatorPubKey,
+       validatorIdx: Natural,
+       shareSecretsDir: string,
+       shareValidatorDir: string,
+       remoteValidatorDir: string,
+       remoteSignersUrls: seq[string],
+       threshold: uint32
+     ): Result[void, KeystoreGenerationError] =
   var signers: seq[RemoteSignerInfo]
   for idx, share in shares:
     var password = KeystorePass.init ncrutils.toHex(rng.generateBytes(32))
@@ -1278,7 +1286,7 @@ proc generateDistirbutedStore*(rng: var HmacDrbgContext,
                    shareSecretsDir / $share.id,
                    share.key, share.key.toPubKey,
                    makeKeyPath(validatorIdx, signingKeyKind),
-                   password.str,
+                   password.str, @[],
                    KeystoreMode.Secure)
 
     signers.add RemoteSignerInfo(
@@ -1351,6 +1359,14 @@ proc generateDeposits*(cfg: RuntimeConfig,
   defer: burnMem(baseKey)
   baseKey = deriveChildKey(baseKey, baseKeyPath)
 
+  var
+    salt = rng.generateKeystoreSalt()
+    password = KeystorePass.init ncrutils.toHex(rng.generateBytes(32))
+
+  defer:
+    burnMem(salt)
+    burnMem(password)
+
   let localValidatorsCount = totalNewValidators - int(remoteValidatorsCount)
   for i in 0 ..< localValidatorsCount:
     let validatorIdx = firstValidatorIdx + i
@@ -1365,12 +1381,10 @@ proc generateDeposits*(cfg: RuntimeConfig,
     derivedKey = deriveChildKey(derivedKey, 0) # This is the signing key
     let signingPubKey = derivedKey.toPubKey
 
-    var password = KeystorePass.init ncrutils.toHex(rng.generateBytes(32))
-    defer: burnMem(password)
     ? saveKeystore(rng, validatorsDir, secretsDir,
                    derivedKey, signingPubKey,
                    makeKeyPath(validatorIdx, signingKeyKind), password.str,
-                   mode)
+                   salt, mode)
 
     deposits.add prepareDeposit(
       cfg, withdrawalPubKey, derivedKey, signingPubKey)
@@ -1395,7 +1409,7 @@ proc generateDeposits*(cfg: RuntimeConfig,
       error "Failed to generate distributed key: ", threshold, sharesCount
       continue
 
-    ? generateDistirbutedStore(rng,
+    ? generateDistributedStore(rng,
                                shares.get,
                                signingPubKey.toPubKey,
                                validatorIdx,
