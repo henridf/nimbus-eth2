@@ -197,3 +197,6 @@
 	path = vendor/merge-testnets
 	url = https://github.com/eth-clients/merge-testnets.git
 	branch = main
+[submodule "vendor/nim-kzg-4844"]
+	path = vendor/nim-kzg-4844
+	url = https://github.com/henridf/nim-kzg-4844

@@ -189,6 +189,8 @@ if (NimMajor, NimMinor) >= (1, 6):
 # Useful for Chronos metrics.
 #--define:chronosFutureTracking
 
+--define:externalBlst
+
 # ############################################################
 #
 #                    No LTO for crypto
