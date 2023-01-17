@@ -81,7 +81,7 @@ template readChunkPayload*(
   readChunkPayload(conn, peer, MsgType)
 
 proc readChunkPayload*(
-    conn: Connection, peer: Peer, MsgType: type (ref ForkedSignedBeaconBlock)):
+    conn: Connection, peer: Peer, MsgType: type (ref ForkySignedBeaconBlock)):
     Future[NetRes[MsgType]] {.async.} =
   var contextBytes: ForkDigest
   try:
@@ -92,25 +92,25 @@ proc readChunkPayload*(
   if contextBytes == peer.network.forkDigests.phase0:
     let res = await readChunkPayload(conn, peer, phase0.SignedBeaconBlock)
     if res.isOk:
-      return ok newClone(ForkedSignedBeaconBlock.init(res.get))
+      return ok newClone(res.get)
     else:
       return err(res.error)
   elif contextBytes == peer.network.forkDigests.altair:
     let res = await readChunkPayload(conn, peer, altair.SignedBeaconBlock)
     if res.isOk:
-      return ok newClone(ForkedSignedBeaconBlock.init(res.get))
+      return ok newClone(res.get)
     else:
       return err(res.error)
   elif contextBytes == peer.network.forkDigests.bellatrix:
     let res = await readChunkPayload(conn, peer, bellatrix.SignedBeaconBlock)
     if res.isOk:
-      return ok newClone(ForkedSignedBeaconBlock.init(res.get))
+      return ok newClone(res.get)
     else:
       return err(res.error)
   elif contextBytes == peer.network.forkDigests.capella:
     let res = await readChunkPayload(conn, peer, capella.SignedBeaconBlock)
     if res.isOk:
-      return ok newClone(ForkedSignedBeaconBlock.init(res.get))
+      return ok newClone(res.get)
     else:
       return err(res.error)
   else:
@@ -298,7 +298,7 @@ p2pProtocol BeaconSync(version = 1,
       reqCount: uint64,
       reqStep: uint64,
       response: MultipleChunksResponse[
-        ref ForkedSignedBeaconBlock, MAX_REQUEST_BLOCKS])
+        ref ForkySignedBeaconBlock, MAX_REQUEST_BLOCKS])
       {.async, libp2pProtocol("beacon_blocks_by_range", 2).} =
     # TODO Semantically, this request should return a non-ref, but doing so
     #      runs into extreme inefficiency due to the compiler introducing
@@ -367,7 +367,7 @@ p2pProtocol BeaconSync(version = 1,
       # spec constant MAX_REQUEST_BLOCKS is enforced:
       blockRoots: BlockRootsList,
       response: MultipleChunksResponse[
-        ref ForkedSignedBeaconBlock, MAX_REQUEST_BLOCKS])
+        ref ForkySignedBeaconBlock, MAX_REQUEST_BLOCKS])
       {.async, libp2pProtocol("beacon_blocks_by_root", 2).} =
     # TODO Semantically, this request should return a non-ref, but doing so
     #      runs into extreme inefficiency due to the compiler introducing
