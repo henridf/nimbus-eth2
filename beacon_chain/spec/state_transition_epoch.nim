@@ -1191,15 +1191,16 @@ proc process_epoch*(
   # https://github.com/ethereum/consensus-specs/blob/v1.3.0-rc.1/specs/phase0/beacon-chain.md#justification-and-finalization
   process_justification_and_finalization(state, info.balances, flags)
 
-  # state.slot hasn't been incremented yet.
-  if strictVerification in flags and currentEpoch >= 2:
-    doAssert state.current_justified_checkpoint.epoch + 2 >= currentEpoch
+  # this change comes from zah's PR for updated local test
 
-  if strictVerification in flags and currentEpoch >= 3:
-    # Rule 2/3/4 finalization results in the most pessimal case. The other
-    # three finalization rules finalize more quickly as long as the any of
-    # the finalization rules triggered.
-    doAssert state.finalized_checkpoint.epoch + 3 >= currentEpoch
+  # state.slot hasn't been incremented yet.
+  if strictVerification in flags:
+    if (currentEpoch >= 2 and state.current_justified_checkpoint.epoch + 2 < currentEpoch) or
+       (currentEpoch >= 3 and state.finalized_checkpoint.epoch + 3 < currentEpoch):
+      fatal "The network did not finalize",
+             currentEpoch, finalizedEpoch = state.finalized_checkpoint.epoch
+      quit 1
+
 
   process_inactivity_updates(cfg, state, info)
 
