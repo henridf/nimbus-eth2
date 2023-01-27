@@ -876,7 +876,8 @@ proc proposeBlock(node: BeaconNode,
         node, randao, validator_index, node.graffitiBytes, head, slot)
 
   if newBlock.isErr():
-    return head # already logged elsewhere!
+    warn "newBlock.isErr", validator = shortLog(validator), error_msg = newBlock.error()
+    return head
 
   var forkedBlck = newBlock.get()
 

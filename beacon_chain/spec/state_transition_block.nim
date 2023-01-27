@@ -21,6 +21,7 @@
 
 import
   chronicles, metrics,
+  std/strformat,
   ../extras,
   ./datatypes/[phase0, altair, bellatrix],
   "."/[beaconstate, eth2_merkleization, helpers, validator, signatures]
@@ -786,6 +787,7 @@ proc validate_blobs_sidecar*(slot: Slot, root: Eth2Digest,
     return err("validate_blobs_sidecar: different slot in block and sidecar")
 
   if root != blobs_sidecar.beacon_block_root:
+    info "validate_blobs_sidecar: different root in block and sidecar", root = shortLog(root), blobs_sidecar_root = shortLog(blobs_sidecar.beacon_block_root)
     return err("validate_blobs_sidecar: different root in block and sidecar")
 
   if expected_kzg_commitments.len != blobs_sidecar.blobs.len:
