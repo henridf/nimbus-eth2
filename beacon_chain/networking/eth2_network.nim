@@ -919,14 +919,14 @@ proc readResponse(conn: Connection, peer: Peer,
       let nextRes = nextFut.read()
       if nextRes.isErr:
         if nextRes.error.kind == PotentiallyExpectedEOF:
-          trace "EOF chunk", conn, err = nextRes.error
+          debug "EOF chunk", conn, err = nextRes.error
 
           return ok results
-        trace "Error chunk", conn, err = nextRes.error
+        debug "Error chunk", conn, err = nextRes.error
 
         return err nextRes.error
       else:
-        trace "Got chunk", conn
+        debug "Got chunk", conn
         if not results.add nextRes.value:
           return neterr(ResponseChunkOverflow)
   else:

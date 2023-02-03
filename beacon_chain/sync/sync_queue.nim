@@ -685,8 +685,10 @@ proc push*[T](sq: SyncQueue[T], sr: SyncRequest[T],
     var i=0
     for blk in sq.blocks(item):
       if reqres.get().blobs.isNone():
+        debug "calling blockVerifier"
         res = await sq.blockVerifier(blk[])
       else:
+        debug "calling blockBlobsVerifier"
         res = await sq.blockBlobsVerifier(blk[], reqres.get().blobs.get()[i])
       inc(i)
 

@@ -36,4 +36,4 @@ create_jwt_token "$JWT_TOKEN"
   --metrics=on \
   --metrics-port=18008 \
   --doppelganger-detection=no \
-  --jwt-secret="$JWT_TOKEN"
+  --jwt-secret="$JWT_TOKEN" 2>&1 | tee nimbus.log

@@ -17,4 +17,5 @@ NETWORK=$(cd "$1"; pwd)
 cd $(dirname "$0")
 
 source ./repo_paths.sh
+echo rm -rf "$(data_dir_for_network)"
 rm -rf "$(data_dir_for_network)"
