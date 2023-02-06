@@ -188,6 +188,9 @@ switch("hint", "XCannotRaiseY:off")
 # Useful for Chronos metrics.
 #--define:chronosFutureTracking
 
+--define:externalBlst
+
+
 # ############################################################
 #
 #                    No LTO for crypto
