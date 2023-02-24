@@ -20,12 +20,12 @@ cd $(dirname "$0")
 source geth_binaries.sh
 source repo_paths.sh
 
-download_geth_capella
 
 : ${GETH_AUTH_RPC_PORT:=18550}
 : ${GETH_WS_PORT:=18551}
 
 DATA_DIR="$(create_data_dir_for_network "$NETWORK")"
+GETH_EIP4844_BINARY="/Users/henridf/gitclones/go-ethereum-eip4844/build/bin/geth"
 
 JWT_TOKEN="$DATA_DIR/jwt-token"
 create_jwt_token "$JWT_TOKEN"
@@ -33,12 +33,8 @@ create_jwt_token "$JWT_TOKEN"
 NETWORK_ID=$(cat "$NETWORK/genesis.json" | jq '.config.chainId')
 
 EXECUTION_BOOTNODES=""
-if [[ -f "$NETWORK/el_bootnode.txt" ]]; then
-  EXECUTION_BOOTNODES+=$(awk '{print $1}' "$NETWORK/el_bootnode.txt" "$NETWORK/el_bootnode.txt" | paste -s -d, -)
-fi
-
-if [[ -f "$NETWORK/el_bootnodes.txt" ]]; then
-  EXECUTION_BOOTNODES+=$(awk '{print $1}' "$NETWORK/el_bootnodes.txt" "$NETWORK/el_bootnode.txt" | paste -s -d, -)
+if [[ -f "$NETWORK/bootstrap_nodes.txt" ]]; then
+  EXECUTION_BOOTNODES+=$(awk '{print $1}' "$NETWORK/bootstrap_nodes.txt" "$NETWORK/bootstrap_nodes.txt" | paste -s -d, -)
 fi
 
 GETH_DATA_DIR="$DATA_DIR/geth"
@@ -48,10 +44,10 @@ set -x
 
 if [[ ! -d "$GETH_DATA_DIR/geth" ]]; then
   # Initialize the genesis
-  $GETH_CAPELLA_BINARY --http --ws -http.api "engine" --datadir "${GETH_DATA_DIR}" init "${EXECUTION_GENESIS_JSON}"
+  $GETH_EIP4844_BINARY --http --ws -http.api "engine" --datadir "${GETH_DATA_DIR}" init "${EXECUTION_GENESIS_JSON}"
 fi
 
-$GETH_CAPELLA_BINARY \
+$GETH_EIP4844_BINARY \
     --authrpc.port ${GETH_AUTH_RPC_PORT} \
     --authrpc.jwtsecret "$JWT_TOKEN" \
     --allow-insecure-unlock \
@@ -61,4 +57,4 @@ $GETH_CAPELLA_BINARY \
     --password "" \
     --metrics \
     --syncmode=full \
-    --networkid $NETWORK_ID
+    --networkid $NETWORK_ID 2>&1 | tee geth.log

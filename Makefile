@@ -674,11 +674,17 @@ clean-sepolia:
 
 ### Capella devnets
 
-capella-devnet-3:
-	tmuxinator start -p scripts/tmuxinator-el-cl-pair-in-devnet.yml network="vendor/capella-testnets/withdrawal-devnet-3/custom_config_data"
+capella-devnet-6:
+	tmuxinator start -p scripts/tmuxinator-el-cl-pair-in-devnet.yml network="vendor/capella-testnets/withdrawal-devnet-6/custom_config_data"
 
-clean-capella-devnet-3:
-	scripts/clean-devnet-dir.sh vendor/capella-testnets/withdrawal-devnet-3/custom_config_data
+clean-capella-devnet-6:
+	scripts/clean-devnet-dir.sh vendor/capella-testnets/withdrawal-devnet-6/custom_config_data
+
+eip4844-testnet-4:
+	tmuxinator start -p scripts/tmuxinator-el-cl-pair-in-devnet.yml network="vendor/4844-testnet/network-configs/devnet-4"
+
+clean-eip4844-testnet-4:
+	scripts/clean-devnet-dir.sh vendor/4844-testnet/network-configs/devnet-4
 
 ###
 ### Gnosis chain binary

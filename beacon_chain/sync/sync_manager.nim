@@ -175,6 +175,7 @@ proc getBlocks*[A, B](man: SyncManager[A, B], peer: A,
     let res = await beaconBlocksByRange_v2(peer, req.slot, req.count, 1'u64)
 
     if res.isErr():
+      debug "eip4844 epoch", epoch = man.DENEB_FORK_EPOCH
       debug "Error, while reading getBlocks response", request = req,
              error = $res.error()
       return
@@ -412,6 +413,7 @@ proc syncStep[A, B](man: SyncManager[A, B], index: int, peer: A) {.async.} =
           return
         Opt.some(blobData)
       else:
+        debug "not gettingblobs", epoch=req.slot.epoch, eip4844_epoch=man.DENEB_FORK_EPOCH, diff=man.getLocalWallSlot().epoch - MIN_EPOCHS_FOR_BLOBS_SIDECARS_REQUESTS
         Opt.none(seq[ref BlobsSidecar])
 
     if blobData.isSome:
