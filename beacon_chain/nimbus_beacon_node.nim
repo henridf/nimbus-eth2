@@ -330,8 +330,8 @@ proc initFullNode(
       config.dumpEnabled, config.dumpDirInvalid, config.dumpDirIncoming,
       rng, taskpool, consensusManager, node.validatorMonitor,
       blobQuarantine, getBeaconTime)
-    blockVerifier =
-        proc(signedBlock: ForkedSignedBeaconBlock, maybeFinalized: bool):
+    blockVerifier =  proc(signedBlock: ForkedSignedBeaconBlock,
+                          blobs: BlobSidecars, maybeFinalized: bool):
         Future[Result[void, VerifierError]] =
       # The design with a callback for block verification is unusual compared
       # to the rest of the application, but fits with the general approach
@@ -339,12 +339,10 @@ proc initFullNode(
       # that should probably be reimagined more holistically in the future.
       let resfut = newFuture[Result[void, VerifierError]]("blockVerifier")
       blockProcessor[].addBlock(MsgSource.gossip, signedBlock,
-                                BlobSidecars @[],
+                                blobs,
                                 resfut,
                                 maybeFinalized = maybeFinalized)
       resfut
-    blockBlobsVerifier = proc(signedBlock: ForkedSignedBeaconBlock,
-                              blobs: BlobSidecars,
                               maybeFinalized: bool):
         Future[Result[void, VerifierError]] =
       # The design with a callback for block verification is unusual compared
@@ -363,11 +361,11 @@ proc initFullNode(
     syncManager = newSyncManager[Peer, PeerId](
       node.network.peerPool, dag.cfg.DENEB_FORK_EPOCH, SyncQueueKind.Forward, getLocalHeadSlot,
       getLocalWallSlot, getFirstSlotAtFinalizedEpoch, getBackfillSlot,
-      getFrontfillSlot, dag.tail.slot, blockVerifier, blockBlobsVerifier)
+      getFrontfillSlot, dag.tail.slot, blockVerifier)
     backfiller = newSyncManager[Peer, PeerId](
       node.network.peerPool, dag.cfg.DENEB_FORK_EPOCH, SyncQueueKind.Backward, getLocalHeadSlot,
       getLocalWallSlot, getFirstSlotAtFinalizedEpoch, getBackfillSlot,
-      getFrontfillSlot, dag.backfill.slot, blockVerifier, blockBlobsVerifier,
+      getFrontfillSlot, dag.backfill.slot, blockVerifier,
       maxHeadAge = 0)
     router = (ref MessageRouter)(
       processor: processor,

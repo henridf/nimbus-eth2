@@ -34,11 +34,6 @@ type
   BlockVerifier* =
     proc(signedBlock: ForkedSignedBeaconBlock, maybeFinalized: bool):
       Future[Result[void, VerifierError]] {.gcsafe, raises: [Defect].}
-  BlockBlobsVerifier* =
-    proc(signedBlock: ForkedSignedBeaconBlock, blobs: BlobSidecars,
-         maybeFinalized: bool):
-      Future[Result[void, VerifierError]] {.gcsafe, raises: [Defect].}
-
   RequestManager* = object
     network*: Eth2Node
     inpQueue*: AsyncQueue[FetchRecord]
