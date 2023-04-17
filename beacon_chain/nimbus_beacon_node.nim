@@ -343,15 +343,29 @@ proc initFullNode(
                                 resfut,
                                 maybeFinalized = maybeFinalized)
       resfut
+    rmanBlockVerifier =  proc(signedBlock: ForkedSignedBeaconBlock,
                               maybeFinalized: bool):
         Future[Result[void, VerifierError]] =
-      # The design with a callback for block verification is unusual compared
-      # to the rest of the application, but fits with the general approach
-      # taken in the sync/request managers - this is an architectural compromise
-      # that should probably be reimagined more holistically in the future.
       let resfut = newFuture[Result[void, VerifierError]]("blockVerifier")
-      blockProcessor[].addBlock(MsgSource.gossip, signedBlock,
-                                blobs, resfut, maybeFinalized = maybeFinalized)
+      withBlck(signedBlock):
+        when typeof(blck).toFork() >= ConsensusFork.Deneb:
+          if not blobQuarantine[].hasBlobs(blck):
+            # We don't have all the blobs for this block, so we have
+            # to put it in blobless quarantine.
+            if not quarantine[].addBlobless(dag.finalizedHead.slot, blck):
+              let e = Result[void, VerifierError].err(VerifierError.UnviableFork)
+              resfut.complete(e)
+            return
+          let blobs = blobQuarantine[].popBlobs(blck.root)
+          blockProcessor[].addBlock(MsgSource.gossip, signedBlock,
+                                    blobs,
+                                    resfut,
+                                    maybeFinalized = maybeFinalized)
+        else:
+          blockProcessor[].addBlock(MsgSource.gossip, signedBlock,
+                                    BlobSidecars @[],
+                                    resfut,
+                                    maybeFinalized = maybeFinalized)
       resfut
     processor = Eth2Processor.new(
       config.doppelgangerDetection,
@@ -403,7 +417,7 @@ proc initFullNode(
   node.requestManager = RequestManager.init(node.network,
                                             dag.cfg.DENEB_FORK_EPOCH,
                                             getBeaconTime,
-                                            blockVerifier)
+                                            rmanBlockVerifier)
   node.syncManager = syncManager
   node.backfiller = backfiller
   node.router = router
