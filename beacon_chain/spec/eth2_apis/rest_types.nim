@@ -310,6 +310,18 @@ type
 
   RestPublishedSignedBeaconBlock* = distinct ForkedSignedBeaconBlock
 
+  DenebSignedBlockContents* = object
+    signed_block*: deneb.SignedBeaconBlock
+    signed_blob_sidecars*: seq[SignedBlobSidecar]
+
+  RestPublishedBlockRequest* = object
+    case kind*: ConsensusFork
+    of ConsensusFork.Phase0:    phase0Data*:    phase0.SignedBeaconBlock
+    of ConsensusFork.Altair:    altairData*:    altair.SignedBeaconBlock
+    of ConsensusFork.Bellatrix: bellatrixData*: bellatrix.SignedBeaconBlock
+    of ConsensusFork.Capella:   capellaData*:   capella.SignedBeaconBlock
+    of ConsensusFork.Deneb:     denebData*:     DenebSignedBlockContents
+
   RestPublishedBeaconBlock* = distinct ForkedBeaconBlock
 
   RestPublishedBeaconBlockBody* = object
@@ -319,6 +331,18 @@ type
     of ConsensusFork.Bellatrix: bellatrixBody*: bellatrix.BeaconBlockBody
     of ConsensusFork.Capella:   capellaBody*:   capella.BeaconBlockBody
     of ConsensusFork.Deneb:     denebBody*:     deneb.BeaconBlockBody
+
+  DenebBlockContents* = object
+    `block`*: deneb.BeaconBlock
+    blob_sidecars*: seq[BlobSidecar]
+
+  ProduceBlockResponseV2* = object
+    case kind*: ConsensusFork
+    of ConsensusFork.Phase0:    phase0Data*:    phase0.BeaconBlock
+    of ConsensusFork.Altair:    altairData*:    altair.BeaconBlock
+    of ConsensusFork.Bellatrix: bellatrixData*: bellatrix.BeaconBlock
+    of ConsensusFork.Capella:   capellaData*:   capella.BeaconBlock
+    of ConsensusFork.Deneb:     denebData*:     DenebBlockContents
 
   RestSpec* = object
     # https://github.com/ethereum/consensus-specs/blob/v1.3.0/presets/mainnet/phase0.yaml
@@ -677,7 +701,6 @@ type
   GetVersionResponse* = DataEnclosedObject[RestNodeVersion]
   GetEpochSyncCommitteesResponse* = DataEnclosedObject[RestEpochSyncCommittee]
   ProduceAttestationDataResponse* = DataEnclosedObject[AttestationData]
-  ProduceBlockResponseV2* = ForkedBeaconBlock
   ProduceBlindedBlockResponse* = ForkedBlindedBeaconBlock
   ProduceSyncCommitteeContributionResponse* = DataEnclosedObject[SyncCommitteeContribution]
   SubmitBlindedBlockResponseBellatrix* = DataEnclosedObject[bellatrix.ExecutionPayload]

@@ -2868,6 +2868,7 @@ proc decodeBody*(
           return err("Unexpected deserialization error")
       ok(RestPublishedSignedBeaconBlock(ForkedSignedBeaconBlock.init(blck)))
     of ConsensusFork.Deneb:
+      # xxx need to change this to read a signedblockcontents
       let blck =
         try:
           SSZ.decode(body.data, deneb.SignedBeaconBlock)

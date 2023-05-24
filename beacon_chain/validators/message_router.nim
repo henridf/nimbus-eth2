@@ -93,6 +93,8 @@ proc routeSignedBeaconBlock*(
     let res = validateBeaconBlock(
       router[].dag, router[].quarantine, blck, wallTime, {})
 
+    # xxx need to do blob gossip validation here too?
+
     if not res.isGoodForSending():
       warn "Block failed validation",
         blockRoot = shortLog(blck.root), blck = shortLog(blck.message),

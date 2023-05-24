@@ -837,7 +837,7 @@ proc installBeaconApiHandlers*(router: var RestRouter, node: BeaconNode) =
           body = contentBody.get()
           version = request.headers.getString("eth-consensus-version")
         var
-          restBlock = decodeBody(RestPublishedSignedBeaconBlock, body,
+          restBlock = decodeBody(RestPublishedBlockRequest, body,
                                  version).valueOr:
             return RestApiResponse.jsonError(Http400, InvalidBlockObjectError,
                                              $error)
@@ -851,6 +851,7 @@ proc installBeaconApiHandlers*(router: var RestRouter, node: BeaconNode) =
         withBlck(forked):
           blck.root = hash_tree_root(blck.message)
           # TODO: Fetch blobs from EE when blck is deneb.SignedBeaconBlock
+          # xxx/henridf
           await node.router.routeSignedBeaconBlock(blck)
 
     if res.isErr():
